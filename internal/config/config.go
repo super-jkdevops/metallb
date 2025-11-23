@@ -32,7 +32,6 @@ import (
 	metallbv1beta2 "go.universe.tf/metallb/api/v1beta2"
 	"go.universe.tf/metallb/internal/bgp/community"
 	"go.universe.tf/metallb/internal/ipfamily"
-	k8snodes "go.universe.tf/metallb/internal/k8s/nodes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -136,6 +135,8 @@ type Peer struct {
 	VRF string
 	// Option to advertise v4 addresses over v6 sessions and viceversa.
 	DualStackAddressFamily bool
+	// Deprecated: DisableMP is deprecated in favor of dualStackAddressFamily.
+	DisableMP bool
 }
 
 // Pool is the configuration of an IP address pool.
@@ -328,13 +329,6 @@ func poolsFor(resources ClusterResources) (*Pools, error) {
 					return nil, fmt.Errorf("CIDR %q in pool %q overlaps with already defined CIDR %q", cidr, p.Name, m)
 				}
 			}
-			// Check pool CIDR is not overlapping with Node IPs
-			nodeIps := k8snodes.NodeIPsForFamily(resources.Nodes, ipfamily.ForCIDR(cidr))
-			for _, nodeIP := range nodeIps {
-				if cidr.Contains(nodeIP) {
-					return nil, fmt.Errorf("pool cidr %q contains nodeIp %q", cidr, nodeIP)
-				}
-			}
 			allCIDRs = append(allCIDRs, cidr)
 		}
 
@@ -492,6 +486,7 @@ func peerFromCR(p metallbv1beta2.BGPPeer, passwordSecrets map[string]corev1.Secr
 		EBGPMultiHop:           p.Spec.EBGPMultiHop,
 		VRF:                    p.Spec.VRFName,
 		DualStackAddressFamily: p.Spec.DualStackAddressFamily,
+		DisableMP:              p.Spec.DisableMP,
 	}, nil
 }
 
